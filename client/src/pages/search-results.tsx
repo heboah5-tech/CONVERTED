@@ -4,8 +4,8 @@ import {
   ChevronDown,
   ChevronUp,
   Bus,
+  BusFront,
   Check,
-  Calendar,
   Clock,
 } from "lucide-react";
 import { useLocation } from "wouter";
@@ -333,6 +333,18 @@ function TripCard({ trip }: { trip: Trip }) {
   const [selectedClass, setSelectedClass] = useState(0);
   const [, setLocation] = useLocation();
 
+  const tripCode = `#${String(trip.id).padStart(4, "0").slice(-4)}`;
+  const distance = distanceKm(trip.from, trip.to);
+  const durationLabel = (() => {
+    const m = trip.duration.match(/(\d+)\s*ساعة\s*(?:(\d+)\s*دقيقة)?/);
+    if (m) {
+      const h = parseInt(m[1] || "0", 10);
+      const mins = parseInt(m[2] || "0", 10);
+      return `${h}س ${String(mins).padStart(2, "0")}د`;
+    }
+    return trip.duration;
+  })();
+
   const onBook = () => {
     const tripClass = trip.classes[selectedClass];
     const totalRow = tripClass?.summary?.find((r) => r.total);
@@ -365,66 +377,128 @@ function TripCard({ trip }: { trip: Trip }) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
-      className="bg-white border border-border rounded-2xl overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-0.5 hover:border-primary/30 transition-all duration-300 mb-4"
+      className="relative w-full mb-4"
       dir="rtl"
       data-testid={`trip-card-${trip.id}`}
     >
-      <div className="p-4 sm:p-5">
-        <div className="flex items-start justify-between gap-3 sm:gap-4">
-          <div className="text-start flex-shrink-0">
-            <div className="text-xl sm:text-2xl font-extrabold text-primary leading-none">
-              {trip.price} <span className="text-sm sm:text-base font-bold">ر.س</span>
+      <div
+        className="group relative flex w-full flex-col overflow-visible transition-colors lg:flex-row min-h-[120px] cursor-pointer"
+        onClick={() => setExpanded((e) => !e)}
+      >
+        {/* Main body */}
+        <div className="group-hover:border-primary border border-e border-b-0 border-gray-200 lg:border-e-0 lg:border-b rounded-t-sm lg:rounded-s-sm flex flex-1 flex-col gap-2 bg-white p-4 transition-colors lg:pe-8">
+          {/* Top row: direct + trip code + class */}
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-center justify-between gap-4 lg:justify-start">
+              <div className="flex flex-col gap-2 text-sm text-gray-600">
+                <div className="flex items-center gap-2">
+                  <BusFront className="size-4 text-gray-500" />
+                  <span>مباشر</span>
+                </div>
+              </div>
             </div>
-            <div className="text-[11px] sm:text-xs text-muted-foreground mt-1">للفرد</div>
+            <div className="flex flex-col items-end gap-1">
+              <div className="flex items-center gap-2 text-xs font-medium text-gray-500">
+                <span className="ms-2 text-gray-400">{tripCode}</span>
+                <span className="min-w-21 rounded-full px-2 py-0.5 text-center text-xs font-semibold uppercase bg-secondary text-secondary-foreground">
+                  إقتصادي
+                </span>
+              </div>
+            </div>
           </div>
 
-          <div className="flex-1 min-w-0 text-start">
-            <div className="flex items-center justify-end gap-2 sm:gap-3 mb-2">
-              <div className="text-start min-w-0">
-                <div className="text-[11px] sm:text-xs text-muted-foreground mb-0.5">الوصول</div>
-                <div className="font-bold text-foreground text-xs sm:text-sm truncate">
-                  {trip.to}
+          {/* Route + middle + dest */}
+          <div className="flex flex-col items-center gap-4 lg:flex-row lg:gap-16">
+            <div className="flex w-full flex-col gap-4 lg:flex-row lg:items-center">
+              {/* From */}
+              <div className="flex shrink-0 flex-col text-center md:gap-0">
+                <div className="flex flex-row items-center gap-2 md:flex-col">
+                  <span className="text-base font-normal text-gray-500">
+                    {trip.from}
+                  </span>
+                  <span className="text-gray-900 md:text-lg md:font-semibold">
+                    {trip.time_depart}
+                  </span>
                 </div>
               </div>
-              <div className="flex flex-col items-center gap-1 px-1 sm:px-2 flex-shrink-0">
-                <div className="w-2 h-2 rounded-full bg-primary" />
-                <div className="w-px h-6 sm:h-8 bg-border" />
-                <Bus className="w-4 h-4 text-primary" />
-                <div className="w-px h-6 sm:h-8 bg-border" />
-                <div className="w-2 h-2 rounded-full bg-emerald-600" />
+              {/* Middle dotted bus line */}
+              <div className="flex w-full flex-col items-center">
+                <div className="-mb-2 text-xs text-gray-400">{tripCode}</div>
+                <div className="flex w-full items-center gap-1">
+                  <div className="size-1 shrink-0 rounded-full bg-gray-300" />
+                  <div className="h-px w-full rounded-full bg-gray-300" />
+                  <Bus className="size-6 text-gray-400" />
+                  <div className="h-px w-full rounded-full bg-gray-300" />
+                  <div className="size-1 shrink-0 rounded-full bg-gray-300" />
+                </div>
+                <div className="-mt-2 text-xs text-gray-400">{trip.date}</div>
               </div>
-              <div className="text-start min-w-0">
-                <div className="text-[11px] sm:text-xs text-muted-foreground mb-0.5">المغادرة</div>
-                <div className="font-bold text-foreground text-xs sm:text-sm truncate">
-                  {trip.from}
+              {/* To */}
+              <div className="flex shrink-0 flex-col text-center md:gap-0 self-end">
+                <div className="flex flex-row items-center gap-2 md:flex-col">
+                  <span className="text-base font-normal text-gray-500">
+                    {trip.to}
+                  </span>
+                  <span className="text-gray-900 md:text-lg md:font-semibold">
+                    {trip.time_arrive}
+                  </span>
                 </div>
               </div>
             </div>
-            <div className="flex items-center justify-end gap-3 text-[11px] sm:text-xs text-foreground font-bold flex-wrap">
+            {/* Distance + duration */}
+            <div className="mt-2 flex shrink-0 flex-row justify-center gap-4 text-sm text-gray-500 lg:mt-0 lg:flex-col">
               <span className="flex items-center gap-1">
-                <Clock className="w-3 h-3" />
-                {trip.time_depart}
+                <BusFront className="size-4" />
+                {distance} كم
               </span>
               <span className="flex items-center gap-1">
-                <Calendar className="w-3 h-3" />
-                {trip.date}
+                <Clock className="size-4" />
+                {durationLabel}
               </span>
             </div>
           </div>
         </div>
 
-        <button
-          onClick={() => setExpanded((e) => !e)}
-          className="mt-4 w-full flex items-center justify-center gap-2 text-primary text-sm font-semibold py-2 rounded-xl hover:bg-primary/5 transition-colors"
-          data-testid={`button-toggle-trip-${trip.id}`}
+        {/* Price column (ticket stub with dashed inner edge + notch cutouts) */}
+        <div
+          className="relative min-w-[110px] bg-white px-4 transition-colors sm:min-w-[200px] md:py-6 rounded-e-none rounded-b-sm md:rounded-s-sm group-hover:border-primary border border-solid border-gray-200"
+          style={{ borderInlineEndStyle: "dashed", borderTopStyle: "solid" }}
         >
-          {expanded ? "إخفاء التفاصيل" : "عرض التفاصيل"}
-          {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-        </button>
+          {/* Top notch */}
+          <span className="hidden lg:flex absolute z-20 bg-muted/30 -top-[1px] rounded-bl-full rounded-br-full -right-5 h-5 w-10 border border-gray-200 group-hover:border-primary rtl:-left-5 rtl:-right-auto" />
+          {/* Bottom notch */}
+          <span className="hidden lg:flex absolute z-20 bg-muted/30 -bottom-[1px] rounded-tl-full rounded-tr-full -right-5 h-5 w-10 border border-gray-200 group-hover:border-primary rtl:-left-5 rtl:-right-auto" />
+
+          <div className="my-4 flex flex-col items-center justify-center">
+            <span className="mt-1 text-xs text-gray-500">من</span>
+            <span className="text-primary text-3xl font-bold">
+              {trip.price}{" "}
+              <span className="font-medium text-base">
+                <i className="not-italic">ر.س</i>
+              </span>
+            </span>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setExpanded((x) => !x);
+              }}
+              className="text-primary mt-2 flex items-center gap-1 text-xs"
+              data-testid={`button-toggle-trip-${trip.id}`}
+            >
+              التفاصيل
+              {expanded ? (
+                <ChevronUp className="size-4" />
+              ) : (
+                <ChevronDown className="size-4" />
+              )}
+            </button>
+          </div>
+        </div>
       </div>
 
       {expanded && (
-        <div className="border-t border-border bg-muted/20 p-4 sm:p-5">
+        <div className="mx-4 border border-t-0 bg-white inset-shadow-xs rounded-b-sm p-4 sm:p-5">
           <div className="flex gap-2 justify-end mb-4 flex-wrap">
             {trip.classes.map((cls, i) => (
               <button
