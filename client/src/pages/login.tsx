@@ -59,7 +59,7 @@ export default function LoginPage() {
           <div className="text-center mb-8">
             <img
               src={SAT_LOGO}
-              alt="SAPTCO ALSA"
+              alt="قطار الحرمين"
               className="h-14 w-auto object-contain mx-auto mb-6"
             />
             <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-primary/30">

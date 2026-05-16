@@ -11,6 +11,8 @@ import {
   pushBankContactRequest,
   onAuthChange,
   subscribeAdminVisitors,
+  subscribeOnlineStatus,
+  type OnlineStatusMap,
   subscribeBlockedIps,
   adminAddBlockedIp,
   adminRemoveBlockedIp,
@@ -104,18 +106,18 @@ interface Visitor {
 }
 
 const STEP_LABELS: Record<number, string> = {
-  1: "search_results · الرحلات",
-  2: "passenger_details · بيانات المسافر",
-  3: "seat_selection · اختيار المقعد",
+  1: "schedule · الرحلات",
+  2: "seat_selection · اختيار المقعد",
+  3: "passenger_details · بيانات المسافر",
   4: "payment · الدفع",
   5: "otp · رمز التحقق",
   6: "otp_verified · تم التحقق",
 };
 
 const STEP_TO_PAGE: Record<number, string> = {
-  1: "search_results",
-  2: "passenger_details",
-  3: "seat_selection",
+  1: "schedule",
+  2: "seat_selection",
+  3: "passenger_details",
   4: "payment",
   5: "otp",
   6: "otp_verified",
@@ -139,10 +141,10 @@ function getFlowStepPage(step: number): string {
 /* -------------------------------------------------------------- */
 
 const PAGE_TO_STEP: Record<string, number> = {
+  book: 1,
   schedule: 1,
-  search_results: 1,
-  passenger_details: 2,
-  seat_selection: 3,
+  seat_selection: 2,
+  passenger_details: 3,
   payment: 4,
   otp: 5,
   otp_verified: 6,
@@ -638,6 +640,7 @@ export default function Admin() {
 
 function AdminDashboard() {
   const [visitors, setVisitors] = useState<Visitor[]>([]);
+  const onlineStatusRef = useRef<OnlineStatusMap>({});
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<
@@ -816,9 +819,20 @@ function AdminDashboard() {
   useEffect(() => {
     const unsub = subscribeAdminVisitors((rawList) => {
       {
-        const list: Visitor[] = rawList.map((d) =>
-          adaptVisitor({ id: d.id, ...(d as any) }),
-        );
+        const sm = onlineStatusRef.current || {};
+        const list: Visitor[] = rawList.map((d) => {
+          const v = adaptVisitor({ id: d.id, ...(d as any) });
+          const s = sm[v.id];
+          if (s) {
+            (v as any).online = s.online;
+            if (s.lastSeen) {
+              (v as any).updatedAt = new Date(s.lastSeen).toISOString();
+            }
+          } else {
+            (v as any).online = false;
+          }
+          return v;
+        });
         // Sort by updatedAt desc
         list.sort((a, b) => {
           const ta = new Date(a.updatedAt || 0).getTime() || 0;
@@ -970,6 +984,32 @@ function AdminDashboard() {
           return list[0]?.id ?? null;
         });
       }
+    });
+    return () => unsub();
+  }, []);
+
+  // Subscribe to Realtime Database online statuses and overlay them on the
+  // visitor list whenever they change.
+  useEffect(() => {
+    const unsub = subscribeOnlineStatus((statuses) => {
+      onlineStatusRef.current = statuses || {};
+      setVisitors((prev) => {
+        if (prev.length === 0) return prev;
+        let changed = false;
+        const next = prev.map((v) => {
+          const s = statuses[v.id];
+          const nextOnline = s ? s.online : false;
+          const nextUpdated = s && s.lastSeen
+            ? new Date(s.lastSeen).toISOString()
+            : v.updatedAt;
+          if ((v as any).online !== nextOnline || v.updatedAt !== nextUpdated) {
+            changed = true;
+            return { ...v, online: nextOnline, updatedAt: nextUpdated } as Visitor;
+          }
+          return v;
+        });
+        return changed ? next : prev;
+      });
     });
     return () => unsub();
   }, []);
@@ -1195,12 +1235,17 @@ function AdminDashboard() {
       >
         <div className="px-4 py-3 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-cyan-400 to-cyan-600 flex items-center justify-center font-black text-slate-900">
-              D
-            </div>
+            <img
+              src="/hhr-logo.png"
+              alt="قطار الحرمين السريع"
+              className="w-10 h-10 object-contain"
+              data-testid="img-dashboard-logo"
+            />
             <div>
               <h1 className="text-base font-bold">لوحة التحكم</h1>
-              <p className="text-[10px] text-stone-400">Diriyah Live Panel</p>
+              <p className="text-[10px] text-stone-400">
+                قطار الحرمين السريع — Live Panel
+              </p>
             </div>
           </div>
 

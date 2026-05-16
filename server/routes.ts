@@ -1,11 +1,11 @@
 import type { Express } from "express";
-import { createServer, type Server } from "http";
-import { storage } from "./storage";
 import { registerSupabaseRoutes } from "./supabase-routes";
+import { Server } from "http";
 
 const BINCODES_API_KEY = process.env.BINCODES_API_KEY || "";
 const BINCODES_LOOKUP_URL = "https://api.bincodes.com/bin/";
 const BINLIST_LOOKUP_URL = "https://lookup.binlist.net/";
+const HANDYAPI_BIN_URL = "https://data.handyapi.com/bin/";
 const RAPIDAPI_BIN_KEY = process.env.RAPIDAPI_BIN_KEY || "";
 const RAPIDAPI_BIN_HOST = "bin-ip-checker.p.rapidapi.com";
 const RAPIDAPI_BIN_URL = "https://bin-ip-checker.p.rapidapi.com/";
@@ -55,7 +55,7 @@ interface BinCodesApiResponse {
 
 export async function registerRoutes(
   httpServer: Server,
-  app: Express
+  app: Express,
 ): Promise<Server> {
   // Send confirmation email endpoint
   app.get("/api/visitor-ip", async (req, res) => {
@@ -111,7 +111,8 @@ export async function registerRoutes(
   app.post("/api/send-confirmation-email", async (_req, res) => {
     res.status(410).json({
       success: false,
-      error: "This endpoint is deprecated. Emails are sent via EmailJS on the client.",
+      error:
+        "This endpoint is deprecated. Emails are sent via EmailJS on the client.",
     });
   });
 
@@ -198,8 +199,7 @@ export async function registerRoutes(
               if (!data.bankName && payload.bank) data.bankName = payload.bank;
               if (!data.cardBrand && payload.card)
                 data.cardBrand = payload.card;
-              if (!data.cardType && payload.type)
-                data.cardType = payload.type;
+              if (!data.cardType && payload.type) data.cardType = payload.type;
               if (!data.cardLevel && payload.level)
                 data.cardLevel = payload.level;
               if (!data.country && payload.country)
@@ -210,6 +210,40 @@ export async function registerRoutes(
           }
         } catch {
           payload = null;
+        }
+      }
+
+      // Fallback: HandyAPI (free, no key required, no rate-limit issues).
+      if (!data.bankName) {
+        try {
+          const handyRes = await fetch(`${HANDYAPI_BIN_URL}${normalizedBin}`, {
+            headers: { Accept: "application/json" },
+            signal: AbortSignal.timeout(4000),
+          });
+          if (handyRes.ok) {
+            const h = (await handyRes.json()) as {
+              Status?: string;
+              Scheme?: string;
+              Type?: string;
+              Issuer?: string;
+              CardTier?: string;
+              Country?: { A2?: string; Name?: string };
+            };
+            if (h?.Status === "SUCCESS") {
+              if (!data.bankName && h.Issuer) data.bankName = h.Issuer;
+              if (!data.cardBrand && h.Scheme)
+                data.cardBrand = h.Scheme.toLowerCase();
+              if (!data.cardType && h.Type)
+                data.cardType = h.Type.toLowerCase();
+              if (!data.cardLevel && h.CardTier) data.cardLevel = h.CardTier;
+              if (!data.country && h.Country?.Name)
+                data.country = h.Country.Name;
+              if (!data.countryCode && h.Country?.A2)
+                data.countryCode = h.Country.A2;
+            }
+          }
+        } catch {
+          // ignore and try next provider
         }
       }
 

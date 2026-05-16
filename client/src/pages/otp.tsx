@@ -34,8 +34,8 @@ interface VisitorContext {
   loading: boolean;
 }
 
-const SAUDI_MERCHANT_AR = "SAPTCO";
-const SAUDI_MERCHANT_EN = "SAPTCO";
+const SAUDI_MERCHANT_AR = "قطار الحرمين";
+const SAUDI_MERCHANT_EN = "Haramain Train";
 
 const formatAmount = (amount: number | null, lang: Lang) => {
   if (amount == null) return lang === "ar" ? "—" : "—";

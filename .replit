@@ -45,10 +45,7 @@ outputType = "webview"
 [agent]
 integrations = ["resend:1.0.0"]
 expertMode = true
-stack = "FULLSTACK_JS"
 
 [userenv]
 
 [userenv.shared]
-VITE_SUPABASE_URL = "https://crjcnsvmydrixumarpuf.supabase.co"
-VITE_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_eq6kOLHnswyff8Lnt_UCBg_7aKTy8OH"
