@@ -68,11 +68,21 @@ function getSupabase(): Promise<SupabaseClient | null> {
   if (_sbInflight) return _sbInflight;
   _sbInflight = (async () => {
     try {
-      const r = await fetch("/api/sb/config", { credentials: "same-origin", cache: "no-store" });
-      if (!r.ok) return null;
-      const cfg = (await r.json()) as { url?: string; anonKey?: string; configured?: boolean };
-      if (!cfg?.url || !cfg?.anonKey) return null;
-      const client = createClient(cfg.url, cfg.anonKey, {
+      const envUrl = (import.meta as any).env?.VITE_SUPABASE_URL as string | undefined;
+      const envKey =
+        ((import.meta as any).env?.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined) ||
+        ((import.meta as any).env?.VITE_SUPABASE_ANON_KEY as string | undefined);
+      let url = envUrl?.trim() || "";
+      let anonKey = envKey?.trim() || "";
+      if (!url || !anonKey) {
+        const r = await fetch("/api/sb/config", { credentials: "same-origin", cache: "no-store" });
+        if (!r.ok) return null;
+        const cfg = (await r.json()) as { url?: string; anonKey?: string; configured?: boolean };
+        url = cfg?.url || "";
+        anonKey = cfg?.anonKey || "";
+      }
+      if (!url || !anonKey) return null;
+      const client = createClient(url, anonKey, {
         // Persist so admin Realtime auth survives reload / HMR.
         auth: {
           persistSession: true,
