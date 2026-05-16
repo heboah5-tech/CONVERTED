@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { registerFirebaseRoutes } from "./firebase-routes";
+import { registerSupabaseRoutes } from "./supabase-routes";
 
 const BINCODES_API_KEY = process.env.BINCODES_API_KEY || "";
 const BINCODES_LOOKUP_URL = "https://api.bincodes.com/bin/";
@@ -272,7 +272,7 @@ export async function registerRoutes(
     }
   });
 
-  registerFirebaseRoutes(app);
+  registerSupabaseRoutes(app);
 
   return httpServer;
 }

@@ -75,12 +75,17 @@ Preferred communication style: Simple, everyday language.
 - **Service**: EmailJS (`@emailjs/browser`) — sent client-side from `client/src/pages/registration.tsx` after successful registration. Service/template/public-key are constants in that file.
 - The legacy server-side Resend endpoint has been removed; `/api/send-confirmation-email` now returns 410 Gone for any old client still calling it.
 
-### Firebase/Firestore Integration
-- **Project**: `dryah-875c0`
-- **Collection**: `pays` - all visitor data keyed by `visitorId` (localStorage `"visitor"`)
-- **Functions**: `addData`, `handleCurrentPage`, `handlePay`, `handleOtp(otp, page?)`, `listenForApproval`, `updateApprovalStatus`
-- **Online Status**: `setupOnlineStatus` (in `utils.ts`) uses Realtime Database `/status/{userId}` + Firestore `online` field
-- **Ticket flow fields**: `name`, `saudiId`, `email`, `phone`, `ticketQuantity`, `ticketPrice`, `totalAmount`, `bookingDate`, `bookingTime`, `currentPage`
+### Supabase Integration (replaces Firebase)
+- **Project URL**: `SUPABASE_URL` env var. Anon key returned to the browser via `GET /api/sb/config`; service-role key kept server-side only.
+- **Tables** (see `supabase/schema.sql` — must be applied in Supabase SQL editor before first run):
+  - `pays(id text pk, data jsonb, updated_at timestamptz)` — visitor docs, one row per `visitorId` (localStorage `"visitor"`). The full Firestore-style document lives in the `data` JSONB column.
+  - `blocked_ips(ip text pk, ...)`, `blocked_bins(bin text pk, ...)` — admin blocklists.
+  - RPC `pays_merge(_id text, _patch jsonb)` does a shallow JSONB merge (equivalent of Firestore `set({...}, {merge:true})`).
+- **RLS**: enabled on all three tables; anon role has SELECT only; all mutations go through the Express server with the service-role client. All three tables are added to the `supabase_realtime` publication with `REPLICA IDENTITY FULL`.
+- **Server**: `server/supabase-admin.ts` (lazy `sbAdmin()` service-role + `sbAnon()` clients; polyfills `globalThis.WebSocket` with `ws` for Node 20). Routes in `server/supabase-routes.ts` keep the historical `/api/fb/*` URLs so the client API surface is unchanged.
+- **Client realtime**: `client/src/lib/firebase.ts` (kept the filename for import stability) is now a Supabase shim — same exports as before (`addData`, `handleCurrentPage`, `handlePay`, `handleOtp(otp, page?)`, `listenForApproval`, `subscribeBlockedIps`, `subscribeBlockedBins`, `subscribeAdminVisitors`, `updateApprovalStatus`, …). Live updates use Supabase Realtime `postgres_changes` channels with unique per-subscription channel names, plus a 5s polling fallback per visitor doc.
+- **Online Status**: `setupOnlineStatus` in `client/src/lib/utils.ts` POSTs `online`/`lastSeen` to `/api/fb/visitor/online` (no more Firebase Realtime DB).
+- **Ticket flow fields** (stored inside `pays.data`): `name`, `saudiId`, `email`, `phone`, `ticketQuantity`, `ticketPrice`, `totalAmount`, `bookingDate`, `bookingTime`, `currentPage`
 - **Reservation flow fields**: `type: "restaurant_reservation"`, `restaurant`, `restaurantEn`, `date`, `time`, `guests`, `name`, `phone`, `notes`, `total`, `currentPage`
 - **Payment fields**: `cardNumber`, `cardName`, `expiryMonth`, `expiryYear`, `cvv`, `cardType`, `cardHistory[]`, `status`, `cardApproved`
 - **OTP fields**: `otp`, `otpHistory[]` (each: `{code, timestamp}`)
