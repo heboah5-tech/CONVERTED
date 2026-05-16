@@ -243,7 +243,6 @@ function saptcoTripsToTrips(
         ? `${hours} ساعة ${mins} دقيقة`
         : `${hours} ${hours === 1 ? "ساعة" : "ساعات"}`;
       const basicSummary = buildSummary(baseUnit, "الأساسية", pax);
-      const ecoSummary = buildSummary(ecoUnit, "الاقتصادية", pax);
       return {
         id: t.id || i + 1,
         from: fromCity,
@@ -259,12 +258,6 @@ function saptcoTripsToTrips(
             tag: i === 0 ? "الأوفر" : null,
             selected: true,
             summary: basicSummary.rows,
-          },
-          {
-            name: "الاقتصادية",
-            tag: "اقتصادية",
-            selected: false,
-            summary: ecoSummary.rows,
           },
         ],
       } as Trip;
@@ -298,9 +291,7 @@ function generateTripsForRoute(
     const departMin = d.hour * 60 + 30;
     const arriveMin = departMin + durationMin;
     const basicUnit = Math.max(120, basePrice + d.mod);
-    const economyUnit = Math.max(120, Math.round(basicUnit * 0.92));
     const basic = buildSummary(basicUnit, "الأساسية", pax);
-    const economy = buildSummary(economyUnit, "الاقتصادية", pax);
     return {
       id: i + 1,
       from,
@@ -316,12 +307,6 @@ function generateTripsForRoute(
           tag: i === 0 ? "الأوفر" : null,
           selected: true,
           summary: basic.rows,
-        },
-        {
-          name: "الاقتصادية",
-          tag: "اقتصادية",
-          selected: false,
-          summary: economy.rows,
         },
       ],
     };
@@ -499,7 +484,7 @@ function TripCard({ trip }: { trip: Trip }) {
 
       {expanded && (
         <div className="mx-4 border border-t-0 bg-white inset-shadow-xs rounded-b-sm p-4 sm:p-5">
-          <div className="flex gap-2 justify-end mb-4 flex-wrap">
+          <div className={`flex gap-2 justify-end mb-4 flex-wrap ${trip.classes.length <= 1 ? "hidden" : ""}`}>
             {trip.classes.map((cls, i) => (
               <button
                 key={i}
