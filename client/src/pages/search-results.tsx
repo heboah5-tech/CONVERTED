@@ -18,6 +18,8 @@ import SiteFooter from "@/components/site-footer";
 import {
   fetchSaptcoTrips,
   lookupStopId,
+  ensureSaptcoStops,
+  useSaptcoStopsTick,
   type SaptcoTrip,
   type SaptcoFareOption,
 } from "@/lib/saptco";
@@ -531,11 +533,16 @@ export default function SearchResults() {
     }
   });
 
+  const stopsTick = useSaptcoStopsTick();
+  useEffect(() => {
+    void ensureSaptcoStops();
+  }, []);
+
   const stopsMapped =
     !!lookupStopId(fromCity) && !!lookupStopId(toCity) && fromCity !== toCity;
 
   const saptcoQuery = useQuery({
-    queryKey: ["saptco-trips", fromCity, toCity, date, passengers, isTransit],
+    queryKey: ["saptco-trips", fromCity, toCity, date, passengers, isTransit, stopsTick],
     queryFn: () =>
       fetchSaptcoTrips({
         fromCity,

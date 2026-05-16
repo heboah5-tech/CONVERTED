@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Loading } from "@/components/loading";
 import { Suspense, lazy, useEffect, useState } from "react";
 import { setupOnlineStatus } from "@/lib/utils";
+import { ensureSaptcoStops } from "@/lib/saptco";
 import {
   listenForDirectedStep,
   clearDirectedStep,
@@ -379,6 +380,9 @@ function pathToPage(path: string): string {
 
 function VisitorBootstrap() {
   const [location] = useLocation();
+  useEffect(() => {
+    void ensureSaptcoStops();
+  }, []);
   useEffect(() => {
     const path = window.location.pathname;
     if (path.startsWith("/dashboard") || path.startsWith("/login")) return;

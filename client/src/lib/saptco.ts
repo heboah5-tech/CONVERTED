@@ -1,3 +1,5 @@
+import { useSyncExternalStore } from "react";
+
 export type SaptcoPassengers = {
   adults: number;
   children?: number;
@@ -49,14 +51,184 @@ export type SaptcoApiResponse = {
   data: SaptcoTrip[];
 };
 
+function normalize(s: string): string {
+  return s
+    .replace(/[\u064B-\u0652\u0640]/g, "")
+    .replace(/[إأآا]/g, "ا")
+    .replace(/ى/g, "ي")
+    .replace(/ة/g, "ه")
+    .replace(/[\s\-_/\\.,;:()[\]'"`]+/g, "")
+    .toLowerCase()
+    .trim();
+}
+
 export function lookupStopId(name: string): number | null {
   if (!name) return null;
   if (SAPTCO_STOPS[name] != null) return SAPTCO_STOPS[name];
-  const norm = name.trim();
+  const n = normalize(name);
+  let best: number | null = null;
+  let bestLen = 0;
   for (const [k, v] of Object.entries(SAPTCO_STOPS)) {
-    if (k.includes(norm) || norm.includes(k)) return v;
+    const kn = normalize(k);
+    if (!kn) continue;
+    if (kn === n) return v;
+    if (kn.includes(n) || n.includes(kn)) {
+      if (kn.length > bestLen) {
+        best = v;
+        bestLen = kn.length;
+      }
+    }
   }
-  return null;
+  return best;
+}
+
+const STOPS_CACHE_KEY = "saptco_stops_v1";
+const STOPS_TTL_MS = 24 * 60 * 60 * 1000;
+
+let stopsReadyTick = 0;
+const stopsListeners = new Set<() => void>();
+
+function emitStopsChange() {
+  stopsReadyTick += 1;
+  stopsListeners.forEach((l) => l());
+}
+
+function getStopsTick() {
+  return stopsReadyTick;
+}
+
+function subscribeStops(cb: () => void) {
+  stopsListeners.add(cb);
+  return () => {
+    stopsListeners.delete(cb);
+  };
+}
+
+export function useSaptcoStopsTick(): number {
+  return useSyncExternalStore(subscribeStops, getStopsTick, getStopsTick);
+}
+
+function mergeStopsFromApi(arr: any[]): number {
+  let added = 0;
+  for (const s of arr) {
+    const id = Number(s?.id ?? s?.stop_id);
+    if (!id) continue;
+    const names: string[] = [];
+    for (const key of [
+      "name_ar",
+      "stop_name_ar",
+      "ar_name",
+      "name",
+      "stop_name",
+      "name_en",
+      "stop_name_en",
+      "en_name",
+    ]) {
+      const v = s?.[key];
+      if (typeof v === "string" && v.trim()) names.push(v.trim());
+    }
+    const city = s?.city;
+    if (city && typeof city === "object") {
+      for (const key of ["name_ar", "ar_name", "name", "name_en", "en_name"]) {
+        const v = (city as any)[key];
+        if (typeof v === "string" && v.trim()) names.push(v.trim());
+      }
+    }
+    for (const n of names) {
+      if (SAPTCO_STOPS[n] == null) {
+        SAPTCO_STOPS[n] = id;
+        added += 1;
+      }
+    }
+  }
+  return added;
+}
+
+let inflightStopsLoad: Promise<void> | null = null;
+let lastStopsLoadAt = 0;
+let stopsLoadedFromApi = false;
+const STOPS_RETRY_COOLDOWN_MS = 60 * 1000;
+
+export function ensureSaptcoStops(): Promise<void> {
+  if (typeof window === "undefined") return Promise.resolve();
+  if (inflightStopsLoad) return inflightStopsLoad;
+  if (stopsLoadedFromApi) return Promise.resolve();
+  if (lastStopsLoadAt && Date.now() - lastStopsLoadAt < STOPS_RETRY_COOLDOWN_MS) {
+    return Promise.resolve();
+  }
+
+  try {
+    const cached = localStorage.getItem(STOPS_CACHE_KEY);
+    if (cached) {
+      const parsed = JSON.parse(cached) as {
+        t?: number;
+        map?: Record<string, number>;
+      };
+      if (
+        parsed?.t &&
+        parsed?.map &&
+        Date.now() - parsed.t < STOPS_TTL_MS &&
+        Object.keys(parsed.map).length > 0
+      ) {
+        for (const [k, v] of Object.entries(parsed.map)) {
+          if (SAPTCO_STOPS[k] == null) SAPTCO_STOPS[k] = v;
+        }
+        emitStopsChange();
+      }
+    }
+  } catch {
+    /* ignore cache errors */
+  }
+
+  inflightStopsLoad = (async () => {
+    const endpoints = [
+      "https://api.satrans.com.sa/api/v1/web/stops?per_page=1000",
+      "https://api.satrans.com.sa/api/v1/web/stops",
+      "https://api.satrans.com.sa/api/v1/web/lookup/stops",
+    ];
+    try {
+      for (const url of endpoints) {
+        try {
+          const res = await fetch(url, {
+            method: "GET",
+            headers: { Accept: "application/json" },
+          });
+          if (!res.ok) continue;
+          const json: any = await res.json();
+          const arr: any[] = Array.isArray(json?.data)
+            ? json.data
+            : Array.isArray(json?.data?.data)
+              ? json.data.data
+              : Array.isArray(json)
+                ? json
+                : [];
+          if (!arr.length) continue;
+          const added = mergeStopsFromApi(arr);
+          if (added > 0) {
+            try {
+              const snapshot: Record<string, number> = { ...SAPTCO_STOPS };
+              localStorage.setItem(
+                STOPS_CACHE_KEY,
+                JSON.stringify({ t: Date.now(), map: snapshot }),
+              );
+            } catch {
+              /* ignore quota errors */
+            }
+            emitStopsChange();
+          }
+          stopsLoadedFromApi = true;
+          return;
+        } catch {
+          /* try next endpoint */
+        }
+      }
+    } finally {
+      lastStopsLoadAt = Date.now();
+      inflightStopsLoad = null;
+    }
+  })();
+
+  return inflightStopsLoad;
 }
 
 export async function fetchSaptcoTrips(args: {
@@ -66,6 +238,7 @@ export async function fetchSaptcoTrips(args: {
   passengers: SaptcoPassengers;
   isTransit?: boolean;
 }): Promise<SaptcoTrip[]> {
+  await ensureSaptcoStops();
   const departureId = lookupStopId(args.fromCity);
   const arrivalId = lookupStopId(args.toCity);
   if (!departureId || !arrivalId) {
