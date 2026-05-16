@@ -14,7 +14,7 @@ const navItems: NavItem[] = [
   { label: "الرحلات", href: "/trips", icon: <Bus className="w-5 h-5" /> },
   { label: "حجوزاتي", href: "/bookings", icon: <Calendar className="w-5 h-5" /> },
   { label: "خدماتنا", href: "/services", icon: <Grid3x3 className="w-5 h-5" /> },
-  { label: "التسجيل", href: "/", icon: <User className="w-5 h-5" /> },
+  { label: "التسجيل", href: "/register", icon: <User className="w-5 h-5" /> },
 ];
 
 export function BottomNav({ active }: { active?: string }) {

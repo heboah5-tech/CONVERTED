@@ -68,7 +68,7 @@ export default function SiteFooter() {
             <Link href="/" data-testid="link-footer-logo">
               <img
                 src={FOOTER_LOGO}
-                alt="قطار الحرمين"
+                alt="SAPTCO ALSA"
                 onError={(e) => {
                   const t = e.currentTarget;
                   t.style.display = "none";
@@ -81,14 +81,14 @@ export default function SiteFooter() {
                 className="font-bold text-2xl text-foreground"
                 style={{ display: "none" }}
               >
-                قطار الحرمين
+                سابتكو السا
               </span>
             </Link>
             <p className="text-sm font-bold text-foreground/80">
-              قطار الحرمين السريع
+              سابتكو السا للنقل
             </p>
             <p className="text-xs text-muted-foreground tracking-wide">
-              HARAMAIN HIGH SPEED RAILWAY
+              SAPTCO ALSA FOR TRANSPORTATION
             </p>
 
             <div className="flex flex-col gap-2 mt-2 text-xs text-muted-foreground">

@@ -342,42 +342,6 @@ export function subscribeAdminVisitors(cb: (visitors: any[]) => void): () => voi
   };
 }
 
-/* -------------------- Online status (RTDB) SSE multiplexer -------------------- */
-export type OnlineStatus = { online: boolean; lastSeen: number };
-export type OnlineStatusMap = Record<string, OnlineStatus>;
-
-let onlineStatusStream:
-  | { es: EventSource; listeners: Set<(m: OnlineStatusMap) => void>; last: OnlineStatusMap | null }
-  | null = null;
-function ensureOnlineStatusStream() {
-  if (onlineStatusStream) return onlineStatusStream;
-  const es = new EventSource(`/api/fb/admin/stream/online-status`, { withCredentials: true } as any);
-  onlineStatusStream = { es, listeners: new Set(), last: null };
-  es.onmessage = (ev) => {
-    try {
-      const data = JSON.parse(ev.data);
-      const statuses: OnlineStatusMap = data?.statuses && typeof data.statuses === "object" ? data.statuses : {};
-      onlineStatusStream!.last = statuses;
-      for (const cb of Array.from(onlineStatusStream!.listeners)) {
-        try { cb(statuses); } catch (err) { console.error(err); }
-      }
-    } catch {}
-  };
-  return onlineStatusStream;
-}
-export function subscribeOnlineStatus(cb: (m: OnlineStatusMap) => void): () => void {
-  const entry = ensureOnlineStatusStream();
-  entry.listeners.add(cb);
-  if (entry.last) cb(entry.last);
-  return () => {
-    entry.listeners.delete(cb);
-    if (entry.listeners.size === 0) {
-      try { entry.es.close(); } catch {}
-      onlineStatusStream = null;
-    }
-  };
-}
-
 /* ==================== Auth ==================== */
 export type AdminUser = { uid: string; email: string };
 

