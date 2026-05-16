@@ -313,6 +313,142 @@ function generateTripsForRoute(
   });
 }
 
+function RiyalSymbol({ className = "" }: { className?: string }) {
+  return (
+    <span
+      className={`inline-block align-middle ${className}`}
+      aria-label="ريال سعودي"
+    >
+      ﷼
+    </span>
+  );
+}
+
+function SaptcoBookingSummary({
+  trip,
+  className,
+  onBook,
+}: {
+  trip: Trip;
+  className: string;
+  onBook: () => void;
+}) {
+  const pax = readPassengerCounts();
+  const VAT = 0.15;
+
+  const lines = PAX_CATS.filter((c) => pax[c.key] > 0).map((c) => {
+    const qty = pax[c.key];
+    const unitTotal = trip.price * c.factor;
+    const unitPreTax = unitTotal / (1 + VAT);
+    return { key: c.key, label: c.label, qty, unitPreTax, unitTotal };
+  });
+
+  const preTaxSubtotal = lines.reduce(
+    (acc, l) => acc + l.unitPreTax * l.qty,
+    0,
+  );
+  const discount = 0;
+  const preTaxAfterDiscount = preTaxSubtotal - discount;
+  const vat = preTaxAfterDiscount * VAT;
+  const rawTotal = preTaxAfterDiscount + vat;
+  const grandTotal = Math.round(rawTotal);
+  const rounding = grandTotal - rawTotal;
+
+  const fmt = (n: number) => n.toFixed(2);
+  const features = ["الاسترداد", "التعديل", "الامتعة (50كجم)", "الخصم", "الألغاء"];
+
+  return (
+    <div className="rounded-md border border-gray-300 bg-white p-4 sm:p-5" dir="rtl">
+      <div className="mb-3 flex items-center justify-end gap-2">
+        <span className="text-base font-bold text-gray-800">{className}</span>
+        <Check className="size-4 text-gray-700" strokeWidth={3} />
+      </div>
+
+      <div className="mb-4 flex flex-wrap justify-end gap-2">
+        {features.map((f) => (
+          <span
+            key={f}
+            className="rounded-full border border-emerald-300 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700"
+          >
+            {f}
+          </span>
+        ))}
+      </div>
+
+      <div className="rounded-md bg-gray-50/70 p-4">
+        <h4 className="mb-3 text-end text-base font-bold text-gray-900">
+          ملخص الحجز
+        </h4>
+
+        <div className="mb-3 rounded-md bg-gray-100/80 p-3">
+          {lines.map((l) => (
+            <div
+              key={l.key}
+              className="mb-1 flex items-center justify-between text-sm last:mb-0"
+            >
+              <div className="flex items-center gap-1 text-gray-800 ltr:flex-row-reverse">
+                <RiyalSymbol className="text-gray-700" />
+                <span className="font-medium">
+                  {fmt(l.unitPreTax)} × {l.qty}
+                </span>
+              </div>
+              <span className="text-gray-700">
+                {l.label} ({className})
+              </span>
+            </div>
+          ))}
+          <div className="mt-1 flex items-center justify-between text-sm">
+            <div className="flex items-center gap-1 text-gray-500">
+              <RiyalSymbol />
+              <span>-{fmt(discount)}</span>
+            </div>
+            <span className="text-gray-500">خصم 0%</span>
+          </div>
+        </div>
+
+        <div className="space-y-2 text-sm text-gray-800">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1">
+              <RiyalSymbol />
+              <span>{fmt(preTaxAfterDiscount)}</span>
+            </div>
+            <span>الإجمالي قبل الضريبة</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1">
+              <RiyalSymbol />
+              <span>{fmt(vat)}</span>
+            </div>
+            <span>الضريبة (15%)</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1">
+              <RiyalSymbol />
+              <span>{fmt(rounding)}</span>
+            </div>
+            <span>التقريب</span>
+          </div>
+          <div className="mt-2 flex items-center justify-between border-t border-gray-300 pt-3 text-base font-bold text-gray-900">
+            <div className="flex items-center gap-1">
+              <RiyalSymbol />
+              <span>{grandTotal}</span>
+            </div>
+            <span>إجمالي المبلغ</span>
+          </div>
+        </div>
+      </div>
+
+      <button
+        onClick={onBook}
+        className="mt-4 w-full rounded-md bg-slate-500 py-3.5 text-base font-bold text-white transition-colors hover:bg-slate-600"
+        data-testid={`button-book-trip-${trip.id}`}
+      >
+        احجز الآن
+      </button>
+    </div>
+  );
+}
+
 function TripCard({ trip }: { trip: Trip }) {
   const [expanded, setExpanded] = useState(trip.id === 1);
   const [selectedClass, setSelectedClass] = useState(0);
@@ -507,39 +643,11 @@ function TripCard({ trip }: { trip: Trip }) {
             ))}
           </div>
 
-          {trip.classes[selectedClass]?.summary?.length > 0 && (
-            <div className="bg-background border border-border rounded-xl p-4 mb-4 text-start">
-              <h4 className="font-bold text-foreground mb-3 text-sm">ملخص الحجز</h4>
-              <div className="space-y-2">
-                {trip.classes[selectedClass].summary.map((row, i) => (
-                  <div
-                    key={i}
-                    className={`flex items-center justify-between text-sm ${
-                      row.total ? "border-t border-border pt-2 font-bold text-foreground" : ""
-                    } ${row.fee ? "text-muted-foreground text-xs" : "text-foreground"}`}
-                  >
-                    <span className="font-bold">{row.sub} ر.س</span>
-                    <span className="text-start">
-                      {row.qty && (
-                        <span className="text-muted-foreground me-1">
-                          {row.qty} {row.price} ر.س
-                        </span>
-                      )}
-                      {row.label}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <button
-            onClick={onBook}
-            className="w-full bg-emerald-600 text-white py-3.5 rounded-xl font-bold text-base hover:bg-emerald-700 hover:-translate-y-0.5 hover:shadow-lg transition-all duration-300"
-            data-testid={`button-book-trip-${trip.id}`}
-          >
-            احجز الآن
-          </button>
+          <SaptcoBookingSummary
+            trip={trip}
+            className={trip.classes[selectedClass]?.name || "الأساسية"}
+            onBook={onBook}
+          />
         </div>
       )}
     </motion.div>
